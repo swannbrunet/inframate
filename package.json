@@ -1,0 +1,31 @@
+{
+  "name": "autodeploy",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "ts-node ./src/index.ts"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/swannbrunet/autoDeploy.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/swannbrunet/autoDeploy/issues"
+  },
+  "homepage": "https://github.com/swannbrunet/autoDeploy#readme",
+  "dependencies": {
+    "@pulumi/docker": "^4.5.8",
+    "@pulumi/pulumi": "^3.144.1",
+    "body-parser": "^1.20.3",
+    "express": "^4.21.2",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.2"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0"
+  }
+}
