@@ -39,7 +39,7 @@ export class secretManager {
         }
     }
 
-    async getOrCreateSecret(key: string): Promise<string | undefined> {
+    async getOrCreateSecret(key: string): Promise<string> {
             const values: DataStored = JSON.parse((await fs.readFile(this.FILE_NAME).catch(() => "{}")).toString())
             if(values[key]) {
                 return values[key]

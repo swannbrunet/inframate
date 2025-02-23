@@ -2,16 +2,23 @@
   "name": "autodeploy",
   "version": "1.0.0",
   "description": "",
+  "type": "module",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "ts-node ./src/index.ts"
+    "start": "ts-node ./src/index.ts",
+    "prepublishOnly": "npm run build",
+    "local": "node dist/infra/controllers/cli.controller.js deploy local",
+    "build": "tsc"
+  },
+  "bin": {
+    "autodeploy": "dist/infra/controllers/cli.controller.js"
   },
   "repository": {
     "type": "git",
     "url": "git+ssh://git@github.com/swannbrunet/autoDeploy.git"
   },
-  "author": "",
+  "author": "Swann Brunet",
   "license": "ISC",
   "bugs": {
     "url": "https://github.com/swannbrunet/autoDeploy/issues"
@@ -19,13 +26,18 @@
   "homepage": "https://github.com/swannbrunet/autoDeploy#readme",
   "dependencies": {
     "@pulumi/docker": "^4.5.8",
+    "@pulumi/keycloak": "^6.2.1",
+    "@pulumi/postgresql": "^3.15.0",
     "@pulumi/pulumi": "^3.144.1",
     "body-parser": "^1.20.3",
+    "chalk": "^5.4.1",
+    "commander": "^13.1.0",
     "express": "^4.21.2",
     "ts-node": "^10.9.2",
     "typescript": "^5.7.2"
   },
   "devDependencies": {
+    "@tsconfig/node22": "^22.0.0",
     "@types/express": "^5.0.0"
   }
 }

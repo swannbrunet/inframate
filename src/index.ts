@@ -1,5 +1,5 @@
 import express from "express"
-import deployementRouter from "./infra/controllers/deployement.controller"
+import deployementRouter from "./infra/controllers/deployement.controller.js"
 import bodyParser from "body-parser"
 
 const app = express()

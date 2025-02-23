@@ -1,54 +1,113 @@
-import { Provider } from "@pulumi/docker";
-import { Service } from "../../projectStackType/service.type";
-import { ConfigDeployement, ResourceToDeploy } from "../config.type";
-import { MongoDBPlugin } from "../../projectStackType/plugin.type";
+import { Provider as DockerProvider } from "@pulumi/docker";
+import { ConfigDeployement, ResourceToDeploy } from "../config.type.js";
 import * as Docker from "@pulumi/docker"
-import { setPluginReturn } from ".";
-import { PostgreSQLPlugin } from "../../projectStackType/globalPlugin.type";
+import Pulumi from "@pulumi/pulumi"
+import { setPluginReturn } from "./index.js";
+import { PostgreSQLPlugin } from "../../projectStackType/globalPlugin.type.js";
+import * as Postgres from "@pulumi/postgresql";
+import { secretManager } from "../../secretManager/index.js";
 
-export async function getPostgresInstance() {
+const ADMIN_POSTGRES_USER = 'admin'
 
-}
+export class PostgresPlugin {
+    constructor(private dockerProvider: DockerProvider, private secretManager: secretManager) {}
 
-export async function getPostgresConnexion(postgresDBPlugin: PostgreSQLPlugin, config: ConfigDeployement, provider: Provider, resources: ResourceToDeploy): Promise<setPluginReturn> {
-    const key = `${config.projectName}-${config.stackName}-plugin-mongodb`
-
-    const DEFAULT_USER = 'user'
-
-    const existingRessource = resources[key]
-    if(existingRessource) {
-        const password = await config.secretManager.getSecret(`${key}-password`)
-        return  { 
-            envs: [`${postgresDBPlugin.exportedEnvMapping.uri}=mongodb://${DEFAULT_USER}:${password}@${key}:27017/`],
-            networks: [(resources[`${key}-network`] as Docker.Network).name]
+    private getPostgresPluginKey(config: ConfigDeployement): string {
+        return  `${config.projectName}-${config.stackName}-plugin-postgres`
     }
-    } else {
-        const password = await config.secretManager.getOrCreateSecret(`${key}-password`)
 
-        const network = new Docker.Network(`${key}-network`, {
-            name: `${key}-network`
-        })
-        resources[`${key}-network`] = network
-
-        const instance = new Docker.Container(key, {
-            image: "mongo:7.0.16",
-            name: key,
-            restart: 'always',
-            envs: [
-                `MONGO_INITDB_ROOT_USERNAME=${DEFAULT_USER}`,
-                `MONGO_INITDB_ROOT_PASSWORD=${password}`,
-                `MONGO_INITDB_DATABASE=${postgresDBPlugin.databaseName}`
-            ],
-            networksAdvanced: [
-                {
-                    name: network.name
+    private async getPostgresInstance(key: string, resources: ResourceToDeploy): Promise<{instance: Docker.Container, network: Docker.Network}> {
+        const existingRessource = resources[key]
+        if(existingRessource) {
+            return {
+                instance: existingRessource as Docker.Container,
+                network: resources[`${key}-network`] as Docker.Network
+            }
+        } else {
+            const password = await this.secretManager.getOrCreateSecret(`${key}-password`)
+    
+            const network = new Docker.Network(`${key}-network`, {
+                name: `${key}-network`
+            })
+            resources[`${key}-network`] = network
+    
+            const instance = new Docker.Container(key, {
+                image: "postgres:15.10",
+                name: key,
+                restart: 'always',
+                envs: [
+                    `POSTGRES_PASSWORD=${ADMIN_POSTGRES_USER}`,
+                    `POSTGRES_USER=${password}`,
+                ],
+                networksAdvanced: [
+                    {
+                        name: network.name
+                    }
+                ],
+                wait: true,
+                healthcheck: {
+                    tests: ["CMD", "pg_isready", "-U", ADMIN_POSTGRES_USER],
+                    interval: "10s",
+                    retries: 6,
+                    timeout: "5s",
                 }
-            ],
-        }, { provider: provider, dependsOn: [network] })
-        resources[key] = instance
-        return  { 
-            envs: [`${postgresDBPlugin.exportedEnvMapping.uri}=mongodb://${DEFAULT_USER}:${password}@${key}:27017/`],
-            networks: [network.name]
+            }, { provider: this.dockerProvider, dependsOn: [network] })
+            resources[key] = instance
+    
+            return {
+                instance,
+                network
+            }
+    
+        }
     }
+    
+    async getConnexion(config: ConfigDeployement, databaseName: string, resources: ResourceToDeploy): Promise<Postgres.Role> {
+        const key = this.getPostgresPluginKey(config)
+        const ressourceName = `${key}-${databaseName}-connexion`
+        const connexion = resources[ressourceName] as Postgres.Role | undefined
+        if (connexion) {
+            return connexion as Postgres.Role
+        }
+        const adminPassword = await this.secretManager.getOrCreateSecret(`${key}-password`)
+        const user = await this.secretManager.getOrCreateSecret(`${ressourceName}-username`)
+        const password = await this.secretManager.getOrCreateSecret(`${ressourceName}-password`)
+        const postgresInstance = await this.getPostgresInstance(key, resources)
+        const provider = new Postgres.Provider("pgProvider", {
+            host: postgresInstance.instance.name,
+            username: ADMIN_POSTGRES_USER,
+            password: adminPassword
+        })
+        const role = new Postgres.Role(`${ressourceName}`, {
+            name: user,
+            password: password,
+            login: true
+        }, { provider })
+    
+        const database = new Postgres.Database(`${key}-${databaseName}`, {
+            name: `${key}-${databaseName}`,
+            owner: role.name
+        }, { provider })
+    
+        resources[ressourceName] = role;
+        resources[`${key}-${databaseName}`] = database;
+        return role;
+    }
+
+    getPrivateHostName(config: ConfigDeployement): string {
+        return this.getPostgresPluginKey(config)
+    }
+    
+    async getPostgresConnexionForService(postgresDBPlugin: PostgreSQLPlugin, config: ConfigDeployement, resources: ResourceToDeploy): Promise<setPluginReturn> {
+        const key = this.getPostgresPluginKey(config)
+    
+        const postgres = await this.getPostgresInstance(key, resources)
+    
+        const connexion = await this.getConnexion(config, postgresDBPlugin.databaseName, resources)
+    
+            return  { 
+                envs: [Pulumi.interpolate`${postgresDBPlugin.exportedEnvMapping.uri}=psql://${connexion.name}:${connexion.password}@${key}:27017/`],
+                networks: [postgres.network.name]
+        }
     }
 }

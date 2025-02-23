@@ -1,17 +1,18 @@
-import { ProjectSetting } from "../projectStackType/projectSetting.type";
-import { secretManager } from "../secretManager";
-import { generateService } from "./computes/service.stack";
-import { ConfigDeployement } from "./config.type";
+import { ProjectSetting } from "../projectStackType/projectSetting.type.js";
+import { secretManager } from "../secretManager/index.js";
+import { generateService } from "./computes/service.stack.js";
+import { ConfigDeployement } from "./config.type.js";
 import * as Docker from "@pulumi/docker";
 
 
 export async function generateStack(projectSetting: ProjectSetting,  projectName: string, stackName: string) {
     const resourceToDeploy = {}
+    const isProd = projectSetting.prodBranch === stackName
     const config: ConfigDeployement = {
         stackName,
         projectName,
-        isProd: projectSetting.prodBranch === stackName,
-        externalDomain: projectSetting.externalDomain,
+        isProd: isProd,
+        domain: isProd ? projectSetting.externalDomain : `${projectSetting.externalDomain}.local`,
         secretManager: new secretManager(),
         contextRessource: projectSetting
     } 

@@ -1,5 +1,5 @@
-import { InstanceSize } from "./instanceSize.type";
-import { Plugin } from "./plugin.type";
+import { InstanceSize } from "./instanceSize.type.js";
+import { Plugin } from "./plugin.type.js";
 
 type VarTypes = {
     key: string,

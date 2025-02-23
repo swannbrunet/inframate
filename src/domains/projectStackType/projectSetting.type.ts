@@ -1,5 +1,4 @@
-import { GlobalPluginConfig } from "./globalPlugin.type";
-import { Service } from "./service.type";
+import { Service } from "./service.type.js";
 
 export interface ProjectSetting {
     externalDomain: string,

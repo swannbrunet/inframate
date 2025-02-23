@@ -1,9 +1,9 @@
-import { Service } from "../../projectStackType/service.type";
+import { Service } from "../../projectStackType/service.type.js";
 import * as Docker from "@pulumi/docker";
-import { ConfigDeployement, ResourceToDeploy } from "../config.type";
+import { ConfigDeployement, ResourceToDeploy } from "../config.type.js";
 import { Input } from "@pulumi/pulumi";
-import { ContainerNetworksAdvanced } from "@pulumi/docker/types/input";
-import { setPlugins } from "../plugins";
+import { ContainerNetworksAdvanced } from "@pulumi/docker/types/input.js";
+import { setPlugins } from "../plugins/index.js";
 
 export async function generateService(service: Service, config: ConfigDeployement, provider: Docker.Provider, resources: ResourceToDeploy) {
     const image = new Docker.RemoteImage(service.image, {
@@ -14,12 +14,12 @@ export async function generateService(service: Service, config: ConfigDeployemen
 
     const labels = []
     const networks: Input<ContainerNetworksAdvanced>[] = []
-    const environmentVars = service.vars.map(value => `${value.key}=${value.value}`.replace("{{url}}", `${!config.isProd ? `${config.stackName}.` : ''}${config.externalDomain}`)
+    const environmentVars: Input<string>[] = service.vars.map(value => `${value.key}=${value.value}`.replace("{{url}}", `${!config.isProd ? `${config.stackName}.` : ''}${config.domain}`)
             .replace("{{environment}}", config.stackName))
 
     if(service.exposedPort) {
         labels.push({
-            value: `Host(\`${service.externalDomainPrefix ? `${service.externalDomainPrefix}.` : ''}${!config.isProd ? `${config.stackName}.` : ''}${config.externalDomain}\`)`,
+            value: `Host(\`${service.externalDomainPrefix ? `${service.externalDomainPrefix}.` : ''}${!config.isProd ? `${config.stackName}.` : ''}${config.domain}\`)`,
             label: `traefik.http.routers.${config.projectName}-${config.stackName}-${service.name}.rule`
           },
           {
@@ -60,6 +60,12 @@ export async function generateService(service: Service, config: ConfigDeployemen
         labels: labels,
         networksAdvanced: networks,
         envs: environmentVars,
+        ports: [
+          {
+            internal: 8081,
+            external: 8081
+          }
+        ]
     })
 
     resources[`${config.projectName}-${config.stackName}-${service.name}`] = container

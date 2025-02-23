@@ -1,9 +1,8 @@
 import { Provider } from "@pulumi/docker";
-import { Service } from "../../projectStackType/service.type";
-import { ConfigDeployement, ResourceToDeploy } from "../config.type";
-import { MongoDBPlugin } from "../../projectStackType/plugin.type";
+import { ConfigDeployement, ResourceToDeploy } from "../config.type.js";
+import { MongoDBPlugin } from "../../projectStackType/plugin.type.js";
 import * as Docker from "@pulumi/docker"
-import { setPluginReturn } from ".";
+import { setPluginReturn } from "./index.js";
 
 export async function getMongoDBConnexion(mongoDBPlugin: MongoDBPlugin, config: ConfigDeployement, provider: Provider, resources: ResourceToDeploy): Promise<setPluginReturn> {
     const key = `${config.projectName}-${config.stackName}-plugin-mongodb`

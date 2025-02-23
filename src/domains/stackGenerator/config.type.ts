@@ -1,12 +1,12 @@
 import { Resource } from "@pulumi/pulumi";
-import { secretManager } from "../secretManager";
-import { ProjectSetting } from "../projectStackType/projectSetting.type";
+import { secretManager } from "../secretManager/index.js";
+import { ProjectSetting } from "../projectStackType/projectSetting.type.js";
 
 export interface ConfigDeployement {
     stackName: string,
     projectName: string,
     isProd: boolean,
-    externalDomain: string,
+    domain: string,
     secretManager: secretManager,
     contextRessource: ProjectSetting,
 }

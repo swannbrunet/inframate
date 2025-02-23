@@ -26,19 +26,21 @@ export interface MongoDBPlugin extends PluginAbstract {
 }
 
 export interface KeycloakBackendPlugin extends PluginAbstract {
-    kind: 'keycloak-backend',
+    kind: 'keycloak-service-account',
     realmName: string,
+    clientName: string,
     exportedEnvMapping : {
         realmName: string,
-        userName: string,
-        password: string,
+        clientSecret: string,
         clientId: string,
+        url: string,
     }
 }
 
 export interface KeycloakFrontendPrivatePlugin extends PluginAbstract {
     kind: 'keycloak-frontend-private',
     realmName: string,
+    clientName: string,
     exportedEnvMapping : {
         clientId: string,
         clientSecret: string,
@@ -49,6 +51,7 @@ export interface KeycloakFrontendPrivatePlugin extends PluginAbstract {
 export interface KeycloakFrontendPublicPlugin extends PluginAbstract {
     kind: 'keycloak-frontend-public',
     realmName: string,
+    clientName: string,
     exportedEnvMapping : {
         clientId: string,
         issuer: string,

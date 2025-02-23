@@ -1,16 +1,12 @@
-import * as pulumi from "@pulumi/pulumi/automation";
-import { generateStack } from "../stackGenerator";
-import { getProjectConfig } from "./getProjectConfig.usecase";
+import * as pulumi from "@pulumi/pulumi/automation/index.js";
+import { generateStack } from "../stackGenerator/index.js";
+import { ProjectSetting } from "../projectStackType/projectSetting.type.js";
 
-export async function deployAnInfrastructure(projectName: string, stackName: string, projectURL: string) {
-    
-    const projectConfig = await getProjectConfig(projectURL, stackName)
-
+export async function deployProjectRessource(projectName: string, stackName: string, projectConfig: ProjectSetting) {
     const workspace = await pulumi.LocalWorkspace.create({
         projectSettings: {
             name: projectName,
             runtime: "nodejs"
-            
         },
         program: async () => {
             return await generateStack(projectConfig, projectName, stackName)

@@ -1,5 +1,5 @@
 import { Router } from "express"
-import { deployAnInfrastructure } from "../../domains/useCases/deployInfratructure.usecase"
+import { deployAnInfrastructure } from "../../domains/useCases/deployInfratructure.workflow.usecase.js"
 
 const router = Router()
 
@@ -16,7 +16,7 @@ router.post("/", function (req, res) {
         } else {
             deployAnInfrastructure(req.body.projectName, req.body.stackName, req.body.projectURL).then(() => {
                 res.status(201).send()
-            }).catch((e) => {
+            }).catch((e: any) => {
                 res.status(500).send(e)
             })
         }

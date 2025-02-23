@@ -1,0 +1,33 @@
+{
+    "externalDomain": "mongo-example.me",
+    "prodBranch": "prod",
+    "services": [
+        {
+            "image": "mongo-express",
+            "version": "1.0.2-20-alpine3.19",
+            "name": "mongo-express",
+            "size": "SMALL",
+            "externalDomainPrefix": "gui",
+            "exposedPort": "8081",
+            "vars": [
+                {
+                    "key": "ME_CONFIG_BASICAUTH",
+                    "value": "false"
+                }
+            ],
+            "plugins": [
+                {
+                    "kind": "mongoDB",
+                    "databaseName": "testDB",
+                    "right": "rw",
+                    "prodDedicated": true,
+                    "reviewDedicated": false,
+                    "exportedEnvMapping": {
+                        "uri": "ME_CONFIG_MONGODB_URL"
+                    }
+                }
+            ],
+            "volumes": []
+        }
+    ]
+}
