@@ -1,49 +1,34 @@
-import { Provider } from "@pulumi/docker";
-import { Service } from "../../projectStackType/service.type.js";
-import { ConfigDeployement, ResourceToDeploy } from "../config.type.js";
-import { getMongoDBConnexion } from "./mongodb.plugin.js";
-import { Output } from "@pulumi/pulumi";
-import { getServiceConnexion } from "./serviceConnexion.plugin.js";
-import { Plugin } from "../../projectStackType/plugin.type.js";
 
-export interface setPluginReturn {
-    envs: (string | Output<string>)[]
-    networks: (string | Output<string>)[]
-}
+import { KeycloakPlugin } from './keycloak.plugin.js';
+import { PostgresPlugin } from './postgres.plugin.js';
+import { TraefikPlugin } from './traefik.plugin.js';
+import { TypesensePlugin } from './typesense.plugin.js';
+import { MongodbPlugin } from './mongodb.plugin.js';
+import {ConfigDeployement, ResourceToDeploy} from "../config.type.js";
+import {AbstractPlugin} from "./abstract.plugin.js";
 
-async function notImplemented (_plugin?: any, _config?: ConfigDeployement, _provider?: Provider, _resources?: ResourceToDeploy): Promise<setPluginReturn> {
-    throw new Error('Plugin not implemented')
-}
 
-const pluginfunctionMapping: {[key in Plugin['kind']]: (plugin: any, config: ConfigDeployement, provider: Provider, resources: ResourceToDeploy) => Promise<setPluginReturn>} = {
-    typesense: notImplemented,
-    mongoDB: getMongoDBConnexion,
-    "keycloak-service-account": notImplemented,
-    "keycloak-frontend-private": notImplemented,
-    "keycloak-frontend-public": notImplemented,
-    postgreSQL: notImplemented,
-    serviceConnexion: getServiceConnexion
-}
+export const plugins: typeof AbstractPlugin[] = [
+    KeycloakPlugin,
+    PostgresPlugin,
+    TraefikPlugin,
+    TypesensePlugin,
+    MongodbPlugin
+]
 
-export async function setPlugins(service: Service, config: ConfigDeployement, provider: Provider, resources: ResourceToDeploy): Promise<setPluginReturn> {
-
-    const environment: (string | Output<string>)[]  = []
-    const networks: (string | Output<string>)[] = []
-
-    for (let i = 0; i < service.plugins.length; i++) {
-        const plugin = service.plugins[i]
-        const pluginToCall = pluginfunctionMapping[plugin.kind as Plugin['kind']]
-        if(pluginToCall) {
-            await pluginToCall(plugin, config, provider, resources).then(result => {
-                environment.push(...result.envs)
-                networks.push(...result.networks)
-            })
-        } else {
-            await notImplemented()
-        }
+export const getPluginFromKind = (kind: string) : typeof AbstractPlugin => {
+    const plugin =  plugins.find(plugin => plugin.kind === kind)
+    if (!plugin) {
+        throw new Error(`No plugin found for kind ${kind}`)
     }
-    return {
-        envs: environment,
-        networks
+    console.log(`init plugin ${plugin.kind}`)
+    return plugin;
+}
+
+export function getPluginFromConnexionKind(config: ConfigDeployement, kind: string, clusterName?: string): AbstractPlugin {
+    const plugin = Object.values(config.resources.resources).find(plugin => plugin?.getConnexionKindNames().includes(kind) && (!clusterName || plugin?.clusterName === clusterName));
+    if(!plugin) {
+        throw new Error(`No plugin found for connexion kind ${kind}`)
     }
+    return plugin;
 }

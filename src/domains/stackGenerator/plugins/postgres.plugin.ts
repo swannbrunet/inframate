@@ -1,113 +1,192 @@
-import { Provider as DockerProvider } from "@pulumi/docker";
-import { ConfigDeployement, ResourceToDeploy } from "../config.type.js";
-import * as Docker from "@pulumi/docker"
-import Pulumi from "@pulumi/pulumi"
-import { setPluginReturn } from "./index.js";
-import { PostgreSQLPlugin } from "../../projectStackType/globalPlugin.type.js";
+import {AbstractPlugin, ConnexionSetting, DeploymentPlan, StageType} from "./abstract.plugin.js";
+import {ConfigDeployement} from "../config.type.js";
+import {
+    PostgresConfigPlugin,
+    TypesenseConfigPlugin
+} from "../../projectStackType/plugin.type.js";
+import * as Docker from "@pulumi/docker";
+import {PostgresConnexion} from "../../projectStackType/pluginConnexion.type.js";
+import Pulumi from "@pulumi/pulumi";
 import * as Postgres from "@pulumi/postgresql";
-import { secretManager } from "../../secretManager/index.js";
+import getPort from "get-port";
+import {Deployment} from "@pulumi/pulumi/automation";
 
-const ADMIN_POSTGRES_USER = 'admin'
 
-export class PostgresPlugin {
-    constructor(private dockerProvider: DockerProvider, private secretManager: secretManager) {}
+export class PostgresPlugin extends AbstractPlugin {
+    static kind = "postgres";
+    declare config: TypesenseConfigPlugin;
+    public readonly type: string = PostgresPlugin.name;
+    private networkName: string;
+    private readonly identifier: string;
+    private readonly user: string = 'user';
+    private password?: string;
+    private configPort?: number;
+    private projectName: string;
 
-    private getPostgresPluginKey(config: ConfigDeployement): string {
-        return  `${config.projectName}-${config.stackName}-plugin-postgres`
+    constructor(config: PostgresConfigPlugin, configDeployment: ConfigDeployement) {
+        super(config, configDeployment);
+        this.identifier = `${configDeployment.projectName}-${configDeployment.stackName}-postgres-${config.clusterName}`;
+        this.networkName = `${this.identifier}-network`
+        this.projectName = `${configDeployment.projectName}-postgres-${config.clusterName}`;
+        this.clusterName = config.clusterName
     }
 
-    private async getPostgresInstance(key: string, resources: ResourceToDeploy): Promise<{instance: Docker.Container, network: Docker.Network}> {
-        const existingRessource = resources[key]
-        if(existingRessource) {
-            return {
-                instance: existingRessource as Docker.Container,
-                network: resources[`${key}-network`] as Docker.Network
-            }
-        } else {
-            const password = await this.secretManager.getOrCreateSecret(`${key}-password`)
-    
-            const network = new Docker.Network(`${key}-network`, {
-                name: `${key}-network`
-            })
-            resources[`${key}-network`] = network
-    
-            const instance = new Docker.Container(key, {
-                image: "postgres:15.10",
-                name: key,
-                restart: 'always',
-                envs: [
-                    `POSTGRES_PASSWORD=${ADMIN_POSTGRES_USER}`,
-                    `POSTGRES_USER=${password}`,
-                ],
-                networksAdvanced: [
-                    {
-                        name: network.name
-                    }
-                ],
-                wait: true,
-                healthcheck: {
-                    tests: ["CMD", "pg_isready", "-U", ADMIN_POSTGRES_USER],
-                    interval: "10s",
-                    retries: 6,
-                    timeout: "5s",
-                }
-            }, { provider: this.dockerProvider, dependsOn: [network] })
-            resources[key] = instance
-    
-            return {
-                instance,
-                network
-            }
-    
-        }
+    private async generateRequirementEnvironementRessource(provider: Docker.Provider): Promise<any> {
+        new Docker.Network(`${this.identifier}-network`, {
+            name: `${this.identifier}-network`
+        }, { provider })
     }
-    
-    async getConnexion(config: ConfigDeployement, databaseName: string, resources: ResourceToDeploy): Promise<Postgres.Role> {
-        const key = this.getPostgresPluginKey(config)
-        const ressourceName = `${key}-${databaseName}-connexion`
-        const connexion = resources[ressourceName] as Postgres.Role | undefined
-        if (connexion) {
-            return connexion as Postgres.Role
-        }
-        const adminPassword = await this.secretManager.getOrCreateSecret(`${key}-password`)
-        const user = await this.secretManager.getOrCreateSecret(`${ressourceName}-username`)
-        const password = await this.secretManager.getOrCreateSecret(`${ressourceName}-password`)
-        const postgresInstance = await this.getPostgresInstance(key, resources)
-        const provider = new Postgres.Provider("pgProvider", {
-            host: postgresInstance.instance.name,
-            username: ADMIN_POSTGRES_USER,
-            password: adminPassword
+
+    private async generateTemporaryEnvironmentResourceConfig(provider: Docker.Provider): Promise<any> {
+        this.configPort = await getPort()
+        new Docker.Container(`${this.identifier}-proxy`, {
+            image: "alpine/socat",
+            networksAdvanced: [{ name: `${this.identifier}-network` }],
+            command: ["TCP-LISTEN:5432,fork", `TCP:${this.identifier}:5432`], // Redirige localhost:5433 vers PostgreSQL
+            ports: [{ internal: 5432, external: this.configPort }],
+        }, { provider })
+    }
+
+    private async generateInstance(provider: Docker.Provider): Promise<any> {
+
+        this.password = await this.configDeployment.secretManager.getOrCreateSecret(`${this.identifier}-password`)
+        const volume = new Docker.Volume(`${this.identifier}-volume`, {
+        name: `${this.identifier}-volume`
+    }, { provider })
+
+   new Docker.Container(this.identifier, {
+        image: "postgres:17",
+        name: this.identifier,
+        restart: 'always',
+        envs: [
+            `POSTGRES_PASSWORD=${this.password}`,
+            `POSTGRES_USER=${this.user}`,
+        ],
+        networksAdvanced: [
+            {
+                name: this.networkName
+            }
+        ],
+        volumes: [
+            {
+                containerPath: "/var/lib/postgresql/data",
+                volumeName: volume.name
+            }
+        ],
+        wait: true,
+        healthcheck: {
+            tests: ["CMD", "pg_isready", "-U", this.user],
+            interval: "10s",
+            retries: 6,
+            timeout: "5s",
+        },
+        labels: [
+            {
+                label: "com.docker.compose.project",
+                value: `${this.configDeployment.projectName}-${this.configDeployment.stackName}`
+            }
+        ],
+    }, { provider })
+    }
+    getDeploymentPlan(): DeploymentPlan {
+        return [
+            {
+                project: `${this.projectName}-step1`,
+                stack: this.configDeployment.stackName,
+                type: StageType.INFRA,
+                run: async () => {
+                    const provider = this.configDeployment.provider()
+                    await this.generateRequirementEnvironementRessource(provider)
+                    await this.generateInstance(provider)
+                },
+                temporary: false
+            }, {
+                project: `${this.projectName}-step2`,
+                stack: this.configDeployment.stackName,
+                type: StageType.INFRA,
+                run: async () => {
+                    const provider = this.configDeployment.provider()
+                    await this.generateTemporaryEnvironmentResourceConfig(provider)
+                },
+                temporary: true
+            }
+        ]
+    }
+
+    getConnexionKindNames(): string[] {
+        return ['postgres'];
+    }
+
+    async getConnexion(setting: PostgresConnexion): Promise<ConnexionSetting> {
+        const connexionProvider = new Postgres.Provider(`${this.identifier}-provider-connexion`, {
+            host: 'localhost',
+            port: this.configPort,
+            username: this.user,
+            password: this.password,
+            sslmode: "disable",
+            connectTimeout: 20
         })
-        const role = new Postgres.Role(`${ressourceName}`, {
+        const envs = []
+        const key = `${this.identifier}-${setting.databaseName}-${setting.right}`
+        const user = await this.configDeployment.secretManager.getOrCreateSecret(`${key}-username`)
+        const password = await this.configDeployment.secretManager.getOrCreateSecret(`${key}-password`)
+
+        const role = new Postgres.Role(`${key}-role`, {
             name: user,
             password: password,
             login: true
-        }, { provider })
-    
-        const database = new Postgres.Database(`${key}-${databaseName}`, {
-            name: `${key}-${databaseName}`,
+        }, { provider: connexionProvider })
+
+        const database = new Postgres.Database(`${key}`, {
+            name: `${setting.databaseName}`,
             owner: role.name
-        }, { provider })
-    
-        resources[ressourceName] = role;
-        resources[`${key}-${databaseName}`] = database;
-        return role;
+        }, { provider: connexionProvider })
+
+        if(setting.exportedEnvMapping.uri) {
+            envs.push(Pulumi.interpolate`${setting.exportedEnvMapping.uri}=postgres://${user}:${password}@${this.identifier}:5432/${database.name}?sslmode=disable`)
+        }
+        if(setting.exportedEnvMapping.host) {
+            envs.push(Pulumi.interpolate`${setting.exportedEnvMapping.host}=${this.identifier}`)
+        }
+        if(setting.exportedEnvMapping.port) {
+            envs.push(`${setting.exportedEnvMapping.port}=5432`)
+        }
+        if(setting.exportedEnvMapping.username) {
+            envs.push(`${setting.exportedEnvMapping.username}=${user}`)
+        }
+        if(setting.exportedEnvMapping.password) {
+            envs.push(`${setting.exportedEnvMapping.password}=${password}`)
+        }
+        if(setting.exportedEnvMapping.database) {
+            envs.push(Pulumi.interpolate`${setting.exportedEnvMapping.database}=${database.name}`)
+        }
+        return { envs, networks: this.networkName ? [this.networkName] : [] }
     }
 
-    getPrivateHostName(config: ConfigDeployement): string {
-        return this.getPostgresPluginKey(config)
+    getName(): string {
+        return "";
     }
-    
-    async getPostgresConnexionForService(postgresDBPlugin: PostgreSQLPlugin, config: ConfigDeployement, resources: ResourceToDeploy): Promise<setPluginReturn> {
-        const key = this.getPostgresPluginKey(config)
-    
-        const postgres = await this.getPostgresInstance(key, resources)
-    
-        const connexion = await this.getConnexion(config, postgresDBPlugin.databaseName, resources)
-    
-            return  { 
-                envs: [Pulumi.interpolate`${postgresDBPlugin.exportedEnvMapping.uri}=psql://${connexion.name}:${connexion.password}@${key}:27017/`],
-                networks: [postgres.network.name]
+
+    static getPlugin(config: PostgresConfigPlugin,
+                     configDeployment: ConfigDeployement): PostgresPlugin {
+        const identifier = `${configDeployment.projectName}-${configDeployment.stackName}-postgres-${config.clusterName}`
+        if(configDeployment.resources.resources[identifier]) {
+            return configDeployment.resources.resources[identifier] as PostgresPlugin;
+        } else {
+            const plugin = new PostgresPlugin(config, configDeployment);
+            configDeployment.resources.resources[plugin.identifier] = plugin;
+            return plugin;
+        }
+    }
+
+    async overrideConnexionStateValue(state: Deployment): Promise<void> {
+        if(state?.deployment?.resources) {
+            state.deployment.resources.forEach((resource: any) => {
+                if (resource.urn.includes(`${this.identifier}-provider-connexion`)) {
+                    resource.inputs.port = `${this.configPort}`;
+                    resource.port = `${this.configPort}`;
+                }
+            });
         }
     }
 }

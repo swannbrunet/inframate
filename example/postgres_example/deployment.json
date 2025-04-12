@@ -1,0 +1,36 @@
+{
+    "externalDomain": "postgres-example.me",
+    "prodBranch": "prod",
+    "plugins": [
+        {
+            "kind": "postgres",
+            "clusterName": "postgres",
+            "prodDedicated": true,
+            "reviewDedicated": false,
+            "size": "SMALL"
+        }
+    ],
+    "services": [
+        {
+            "image": "sosedoff/pgweb",
+            "version": "0.16.2",
+            "name": "pgadmin",
+            "size": "SMALL",
+            "externalDomainPrefix": "gui",
+            "exposedPort": 8081,
+            "vars": [],
+            "plugins": [
+                {
+                    "kind": "postgres",
+                    "clusterName": "postgres",
+                    "databaseName": "test",
+                    "right": "rw",
+                    "exportedEnvMapping": {
+                        "uri": "DATABASE_URL"
+                    }
+                }
+            ],
+            "volumes": []
+        }
+    ]
+}

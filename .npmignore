@@ -1,0 +1,6 @@
+./src
+.idea
+.git
+./example
+.env.example
+test.js

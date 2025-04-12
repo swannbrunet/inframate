@@ -1,0 +1,16 @@
+{
+  "externalDomain": "keycloak-example.me",
+  "prodBranch": "prod",
+  "plugins": [
+    {
+      "size": 0,
+      "kind": "keycloak",
+      "clusterName": "keycloak",
+      "prodDedicated": true,
+      "reviewDedicated": false,
+      "externalDomainPrefix": "auth"
+    }
+  ],
+  "services": [
+  ]
+}

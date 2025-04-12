@@ -1,15 +1,9 @@
-import express from "express"
-import deployementRouter from "./infra/controllers/deployement.controller.js"
-import bodyParser from "body-parser"
+import * as Plugin from './domains/projectStackType/plugin.type.js'
+import * as Service from './domains/projectStackType/service.type.js'
+import * as Settings from "./domains/projectStackType/projectSetting.type.js";
 
-const app = express()
-
-app.use(bodyParser.urlencoded())
-app.use(bodyParser.json())
-
-app.use("/deploy", deployementRouter)
-
-
-app.listen(process.env.PORT || 3000, () => {
-    console.log('Listen on port ', process.env.PORT || 3000)
-})
+export default {
+    Plugin,
+    Service,
+    Settings,
+}

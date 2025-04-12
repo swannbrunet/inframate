@@ -1,22 +1,28 @@
 {
-  "name": "autodeploy",
-  "version": "1.0.0",
+  "name": "inframate",
+  "version": "0.0.2",
   "description": "",
   "type": "module",
-  "main": "index.js",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "ts-node ./src/index.ts",
+    "start:server": "ts-node ./src/index.server.ts",
     "prepublishOnly": "npm run build",
     "local": "node dist/infra/controllers/cli.controller.js deploy local",
-    "build": "tsc"
+    "build": "tsc",
+    "cli": "bun run ./src/infra/controllers/cli.controller.ts"
   },
   "bin": {
-    "autodeploy": "dist/infra/controllers/cli.controller.js"
+    "inframate": "src/infra/controllers/cli.controller.ts"
   },
   "repository": {
     "type": "git",
     "url": "git+ssh://git@github.com/swannbrunet/autoDeploy.git"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
   },
   "author": "Swann Brunet",
   "license": "ISC",
@@ -30,11 +36,16 @@
     "@pulumi/postgresql": "^3.15.0",
     "@pulumi/pulumi": "^3.144.1",
     "body-parser": "^1.20.3",
+    "bun": "^1.2.5",
     "chalk": "^5.4.1",
     "commander": "^13.1.0",
+    "devcert": "^1.2.2",
     "express": "^4.21.2",
+    "get-port": "^7.1.0",
     "ts-node": "^10.9.2",
-    "typescript": "^5.7.2"
+    "tsx": "^4.19.3",
+    "typescript": "^5.7.2",
+    "yaml": "^2.7.1"
   },
   "devDependencies": {
     "@tsconfig/node22": "^22.0.0",

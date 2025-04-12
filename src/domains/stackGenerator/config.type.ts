@@ -1,6 +1,7 @@
-import { Resource } from "@pulumi/pulumi";
 import { secretManager } from "../secretManager/index.js";
 import { ProjectSetting } from "../projectStackType/projectSetting.type.js";
+import { AbstractPlugin } from "./plugins/abstract.plugin.js";
+import * as Docker from "@pulumi/docker";
 
 export interface ConfigDeployement {
     stackName: string,
@@ -9,8 +10,14 @@ export interface ConfigDeployement {
     domain: string,
     secretManager: secretManager,
     contextRessource: ProjectSetting,
+    resources: ResourceToDeploy,
+    provider: () => Docker.Provider,
 }
 
 export interface ResourceToDeploy {
-    [id: string]: Resource | undefined
+    externalDomain: {service: string, domain: string}[]
+    resources: {
+        [id: string]: AbstractPlugin | undefined
+    }
+
 }

@@ -1,6 +1,15 @@
 {
     "externalDomain": "mongo-example.me",
     "prodBranch": "prod",
+    "plugins": [
+        {
+            "kind": "mongoDB",
+            "clusterName": "mongoDB",
+            "prodDedicated": true,
+            "reviewDedicated": false,
+            "size": "SMALL"
+        }
+    ],
     "services": [
         {
             "image": "mongo-express",
@@ -8,7 +17,7 @@
             "name": "mongo-express",
             "size": "SMALL",
             "externalDomainPrefix": "gui",
-            "exposedPort": "8081",
+            "exposedPort": 8081,
             "vars": [
                 {
                     "key": "ME_CONFIG_BASICAUTH",
@@ -18,10 +27,9 @@
             "plugins": [
                 {
                     "kind": "mongoDB",
+                    "clusterName": "mongoDB",
                     "databaseName": "testDB",
                     "right": "rw",
-                    "prodDedicated": true,
-                    "reviewDedicated": false,
                     "exportedEnvMapping": {
                         "uri": "ME_CONFIG_MONGODB_URL"
                     }

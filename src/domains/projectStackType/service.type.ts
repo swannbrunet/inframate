@@ -1,5 +1,5 @@
 import { InstanceSize } from "./instanceSize.type.js";
-import { Plugin } from "./plugin.type.js";
+import { Plugin } from "./pluginConnexion.type.js";
 
 type VarTypes = {
     key: string,
@@ -11,13 +11,13 @@ export interface Service {
     version: string,
     name: string,
     externalDomainPrefix?: string,
-    exposedPort?: string,
+    exposedPort?: number,
     size: InstanceSize,
     prodSize?: InstanceSize,
     vars: VarTypes[],
     plugins : Plugin[],
     volumes: {
         containerPath: string,
-        volumeName: string, 
-    }[] 
+        volumeName: string,
+    }[]
 }

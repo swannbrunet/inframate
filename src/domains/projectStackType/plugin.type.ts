@@ -1,78 +1,38 @@
+import {InstanceSize} from "./instanceSize.type.js";
+import {Service} from "./service.type.js";
 
-export type Plugin = TypesensePlugin | MongoDBPlugin | KeycloakBackendPlugin | KeycloakFrontendPrivatePlugin | KeycloakFrontendPublicPlugin | PostgreSQLPlugin | ServiceConnexionPlugin
+export type Plugin = TypesenseConfigPlugin | MongoDBConfigPlugin | KeycloakConfigPlugin | PostgresConfigPlugin;
 
-interface PluginAbstract {
+export interface PluginAbstract {
     kind: string,
-    exportedEnvMapping: {}
+    prodDedicated: boolean, // if is true a dedicated instance is created for prod stack. Default dedicated.
+    reviewDedicated: boolean, // if is true a dedicated instance is created for other stack that prod. Default Shared.
 }
 
-export interface TypesensePlugin extends PluginAbstract {
-    kind: 'typesense'
-    right: 'r' | 'w' | 'rw'
-    exportedEnvMapping: {
-        host: string,
-        port: string,
-        protocol: string,
-    }
+export interface TypesenseConfigPlugin extends PluginAbstract {
+    kind: 'typesense',
+    clusterName: string,
+    size: InstanceSize,
 }
 
-export interface MongoDBPlugin extends PluginAbstract {
+export interface MongoDBConfigPlugin extends PluginAbstract {
     kind : 'mongoDB',
-    databaseName: string,
-    right: 'r' | 'w' | 'rw'
-    exportedEnvMapping : {
-        uri: string,
-    }
+    clusterName: string,
+    size: InstanceSize,
 }
 
-export interface KeycloakBackendPlugin extends PluginAbstract {
-    kind: 'keycloak-service-account',
-    realmName: string,
-    clientName: string,
-    exportedEnvMapping : {
-        realmName: string,
-        clientSecret: string,
-        clientId: string,
-        url: string,
-    }
+export interface KeycloakConfigPlugin extends PluginAbstract {
+    kind: 'keycloak',
+    clusterName: string,
+    size: InstanceSize,
+    externalDomainPrefix: string,
 }
 
-export interface KeycloakFrontendPrivatePlugin extends PluginAbstract {
-    kind: 'keycloak-frontend-private',
-    realmName: string,
-    clientName: string,
-    exportedEnvMapping : {
-        clientId: string,
-        clientSecret: string,
-        issuer: string,
-    }
+export interface PostgresConfigPlugin extends PluginAbstract {
+    kind: 'postgres',
+    clusterName: string,
 }
 
-export interface KeycloakFrontendPublicPlugin extends PluginAbstract {
-    kind: 'keycloak-frontend-public',
-    realmName: string,
-    clientName: string,
-    exportedEnvMapping : {
-        clientId: string,
-        issuer: string,
-    }
-}
-
-export interface PostgreSQLPlugin extends PluginAbstract {
-    kind: 'postgreSQL',
-    databaseName: string,
-    right: 'r' | 'w' | 'rw'
-    exportedEnvMapping : {
-        uri: string,
-    }
-}
-
-export interface ServiceConnexionPlugin {
-    kind: 'serviceConnexion',
-    serviceName: string,
-    mode: 'public' | 'private'
-    templateUrl?: string,
-    exportEnvMapping : {
-        url: string
-    }
+export interface AppConfigPlugin extends Service {
+    kind: 'app',
 }
