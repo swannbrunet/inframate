@@ -1,6 +1,6 @@
-import { secretManager } from "../secretManager/index.js";
-import { ProjectSetting } from "../projectStackType/projectSetting.type.js";
-import { AbstractPlugin } from "./plugins/abstract.plugin.js";
+import { secretManager } from "../secretManager/index.ts";
+import type {ProjectSetting} from "../projectStackType/projectSetting.type.ts";
+import { AbstractPlugin } from "./plugins/abstract.plugin.ts";
 import * as Docker from "@pulumi/docker";
 
 export interface ConfigDeployement {

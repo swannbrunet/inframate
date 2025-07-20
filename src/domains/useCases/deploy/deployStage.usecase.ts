@@ -1,6 +1,6 @@
 import * as pulumi from "@pulumi/pulumi/automation/index.js";
 import chalk from "chalk";
-import {Stage, StageMode, StageType} from "../stackGenerator/plugins/abstract.plugin.js";
+import {type Stage, StageMode, StageType} from "../../stackGenerator/plugins/abstract.plugin.ts";
 
 export async function deployStage(stage: Stage): Promise<void> {
     if(stage.type === StageType.COMMAND) {

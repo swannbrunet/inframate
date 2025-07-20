@@ -1,9 +1,8 @@
-import {AbstractPlugin, ConnexionSetting, DeploymentPlan, StageType} from "./abstract.plugin.js";
-import {ConfigDeployement} from "../config.type.js";
-import * as docker from "@pulumi/docker";
-import {MongoDBConfigPlugin, TypesenseConfigPlugin} from "../../projectStackType/plugin.type.js";
+import {AbstractPlugin, type ConnexionSetting, type DeploymentPlan, StageType} from "./abstract.plugin.ts";
+import type {ConfigDeployement} from "../config.type.ts";
+import type {MongoDBConfigPlugin, TypesenseConfigPlugin} from "../../projectStackType/plugin.type.ts";
 import * as Docker from "@pulumi/docker";
-import {MongoDBConnexion} from "../../projectStackType/pluginConnexion.type.js";
+import type {MongoDBConnexion} from "../../projectStackType/pluginConnexion.type.ts";
 import Pulumi from "@pulumi/pulumi";
 
 export class MongodbPlugin extends AbstractPlugin {
@@ -14,7 +13,7 @@ export class MongodbPlugin extends AbstractPlugin {
     private instance?: Docker.Container;
     private network?: Docker.Network;
     private volume?: Docker.Volume;
-    private readonly identifier: string;
+    public readonly identifier: string;
     private readonly user: string = 'user';
     private password?: string;
     private projectName: string;
@@ -78,6 +77,10 @@ export class MongodbPlugin extends AbstractPlugin {
 
     getConnexionKindNames(): ['mongoDB'] {
         return ['mongoDB'];
+    }
+
+    getLabel(): string {
+        return this.config.clusterName;
     }
 
     async getConnexion(setting: MongoDBConnexion): Promise<ConnexionSetting> {

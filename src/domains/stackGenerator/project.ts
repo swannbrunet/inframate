@@ -1,13 +1,12 @@
-import { ProjectSetting } from "../projectStackType/projectSetting.type.js"
-import { secretManager } from "../secretManager/index.js"
-import {ConfigDeployement, ResourceToDeploy } from "./config.type.js"
+import type {ProjectSetting} from "../projectStackType/projectSetting.type.ts"
+import { secretManager } from "../secretManager/index.ts"
+import type {ConfigDeployement, ResourceToDeploy} from "./config.type.ts"
 import * as Docker from "@pulumi/docker"
-import {AbstractPlugin, DeploymentPlan, Stage} from "./plugins/abstract.plugin.js"
-import {getPluginFromKind, plugins} from "./plugins/index.js"
-import { TraefikPlugin } from "./plugins/traefik.plugin.js"
-import { ServiceConnexionPlugin } from "./plugins/serviceConnexion.plugin.js"
-import { generateService } from "./computes/service.stack.js"
-import {AppPlugin} from "./plugins/app.plugin.js";
+import {AbstractPlugin, type DeploymentPlan, type Stage} from "./plugins/abstract.plugin.ts"
+import {getPluginFromKind} from "./plugins/index.ts"
+import { TraefikPlugin } from "./plugins/traefik.plugin.ts"
+import { ServiceConnexionPlugin } from "./plugins/serviceConnexion.plugin.ts"
+import {AppPlugin} from "./plugins/app.plugin.ts";
 
 export class Project {
     private services: any[] = []
@@ -68,7 +67,7 @@ export class Project {
             if(iteration > 10) {
                 throw new Error('To many dependencies steps ( more than 10 )')
             }
-            const step = []
+            const step: AbstractPlugin[] = []
             this.plugins.forEach(plugin => {
                 if (!pluginInserted.includes(plugin) && plugin.dependencies.every(dep => pluginInserted.includes(dep))) {
                     step.push(plugin)
@@ -98,6 +97,20 @@ export class Project {
         return this.projectDeploymentPlan[step].map(plugin => plugin.getDeploymentPlan());
     }
 
+    getDependencyGraph(): ResourceGraph[] {
+        const result: ResourceGraph[] = []
+        this.plugins.forEach((plugin) => {
+            result.push({
+                id: plugin.identifier,
+                type: plugin.type,
+                name: plugin.getLabel(),
+                info: plugin.getInfo(),
+                linkedTo: plugin.dependencies.map(plugin => plugin.getLabel()),
+            })
+        })
+        return result
+    }
+
     getExternalDomain() {
         return this.configDeployement.resources.externalDomain
     }
@@ -105,4 +118,12 @@ export class Project {
     getTemporaryStages() {
         return this.temporaryStage
     }
+}
+
+interface ResourceGraph {
+    type: string
+    id: string
+    name: string
+    info: any
+    linkedTo: string[]
 }

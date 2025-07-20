@@ -1,5 +1,5 @@
-import {InstanceSize} from "./instanceSize.type.js";
-import {Service} from "./service.type.js";
+import {InstanceSize} from "./instanceSize.type.ts";
+import type {Service} from "./service.type.ts";
 
 export type Plugin = TypesenseConfigPlugin | MongoDBConfigPlugin | KeycloakConfigPlugin | PostgresConfigPlugin;
 

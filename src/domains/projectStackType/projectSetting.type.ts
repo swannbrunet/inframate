@@ -1,5 +1,5 @@
-import { Service } from "./service.type.js";
-import { Plugin } from "./plugin.type.js";
+import type {Service} from "./service.type.ts";
+import type {Plugin} from "./plugin.type.ts";
 
 export interface ProjectSetting {
     externalDomain: string,

@@ -1,14 +1,15 @@
-import {AbstractPlugin, ConnexionSetting, DeploymentPlan, StageType} from "./abstract.plugin.js";
-import {KeycloakConnexion} from "../../projectStackType/pluginConnexion.type.js";
-import {
+import {AbstractPlugin, type ConnexionSetting, type DeploymentPlan, StageType} from "./abstract.plugin.ts";
+import type {KeycloakConnexion} from "../../projectStackType/pluginConnexion.type.ts";
+import type {
     KeycloakConfigPlugin,
-} from "../../projectStackType/plugin.type.js";
+} from "../../projectStackType/plugin.type.ts";
 import * as Docker from "@pulumi/docker";
 import Pulumi from "@pulumi/pulumi";
-import { ConfigDeployement } from "../config.type.js";
-import { PostgresPlugin } from "./postgres.plugin.js";
-import { TraefikPlugin } from "./traefik.plugin.js";
-import {Deployment} from "@pulumi/pulumi/automation";
+import type {ConfigDeployement} from "../config.type.ts";
+import { PostgresPlugin } from "./postgres.plugin.ts";
+import { TraefikPlugin } from "./traefik.plugin.ts";
+import type {Deployment} from "@pulumi/pulumi/automation";
+import * as Keycloak from "@pulumi/keycloak";
 
 export class KeycloakPlugin extends AbstractPlugin {
     static kind = "keycloak";
@@ -17,11 +18,14 @@ export class KeycloakPlugin extends AbstractPlugin {
     }
     declare config: KeycloakConfigPlugin;
     public readonly type: string = KeycloakPlugin.name;
-    private readonly identifier: string;
+    public readonly identifier: string;
     private readonly username: string = 'admin';
     private password?: string;
-    private database: PostgresPlugin;
-    private traefik: TraefikPlugin;
+    private readonly database: PostgresPlugin;
+    private readonly traefik: TraefikPlugin;
+    private readonly url: string;
+    private configPort: number = 20000 + Math.floor(Math.random() * 10000);
+    private realmNames: string[] = []
 
     constructor(config: KeycloakConfigPlugin, configDeployment: ConfigDeployement) {
         super(config, configDeployment);
@@ -32,6 +36,7 @@ export class KeycloakPlugin extends AbstractPlugin {
             kind: 'postgres',
             clusterName: 'keycloak'
         }, configDeployment)
+        this.url = `${this.config.externalDomainPrefix}.${this.configDeployment.stackName}.${this.configDeployment.domain}`
         this.traefik = TraefikPlugin.getPlugin({kind: 'traefik',}, configDeployment)
         this.dependencies = [this.database, this.traefik]
         this.clusterName = config.clusterName
@@ -106,6 +111,17 @@ export class KeycloakPlugin extends AbstractPlugin {
         }, { provider })
     }
 
+    private getKeycloakConnexionProvider() {
+        return new Keycloak.Provider(`${this.identifier}-provider`,
+            {
+                url: `http://localhost:${this.configPort}`,
+                clientId: 'admin-cli',
+                username: this.username,
+                password: this.password,
+            }
+        )
+    }
+
     getDeploymentPlan(): DeploymentPlan {
         return [
             {
@@ -120,18 +136,104 @@ export class KeycloakPlugin extends AbstractPlugin {
                     await this.traefik.overrideConnexionStateValue(state)
                 },
                 temporary: false
+            },
+            {
+                project: `${this.identifier}-step-2`,
+                stack: this.configDeployment.stackName,
+                type: StageType.INFRA,
+                run: async () => {
+                    const provider = this.configDeployment.provider()
+                    await this.generateTemporaryEnvironmentResourceConfig(provider)
+                },
+                temporary: true
+            },
+            {
+                project: `${this.identifier}-step-3`,
+                stack: this.configDeployment.stackName,
+                type: StageType.INFRA,
+                run: async () => {
+                    // TODO set realm
+                },
+                temporary: false
             }
         ]
     }
 
     async getConnexion(setting: KeycloakConnexion): Promise<ConnexionSetting> {
-        return {
-            envs: [],
-            networks: []
+        const provider = this.getKeycloakConnexionProvider()
+        if (setting.kind === 'keycloak-service-account') {
+            const clientSecret = this.configDeployment.secretManager.getOrCreateSecret(`${this.identifier}-${setting.realmName}-${setting.clientName}-secret`)
+            const client = new Keycloak.openid.Client("openid_client", {
+                realmId: setting.realmName,
+                clientId: setting.clientName,
+                clientSecret: clientSecret,
+                name: `client account for ${setting.clientName}`,
+                enabled: true,
+                accessType: "CONFIDENTIAL",
+            }, {provider: provider})
+
+            return {
+                envs: [Pulumi.interpolate`${setting.exportedEnvMapping.realmName}=${setting.realmName}`,
+                    Pulumi.interpolate`${setting.exportedEnvMapping.url}=${this.identifier}`,
+                    Pulumi.interpolate`${setting.exportedEnvMapping.clientId}=${setting.clientName}`,
+                    Pulumi.interpolate`${setting.exportedEnvMapping.clientSecret}=${clientSecret}`,
+                ],
+                networks: [`${this.identifier}-network`]
+            }
         }
+        if(setting.kind === 'keycloak-frontend-private') {
+            const clientSecret = this.configDeployment.secretManager.getOrCreateSecret(`${this.identifier}-${setting.realmName}-${setting.clientName}-secret`)
+            const client = new Keycloak.openid.Client("openid_client", {
+                realmId: setting.realmName,
+                clientId: setting.clientName,
+                clientSecret: clientSecret,
+                name: `client account for ${setting.clientName}`,
+                enabled: true,
+                accessType: "CONFIDENTIAL",
+                validRedirectUris: [setting.validRedirectUri],
+                validPostLogoutRedirectUris: [setting.validRedirectUri],
+                loginTheme: "keycloak",
+            }, {provider: provider})
+
+            return {
+                envs: [Pulumi.interpolate`${setting.exportedEnvMapping.issuer}=${this.url}/realms/${client.realmId}`,
+                    Pulumi.interpolate`${setting.exportedEnvMapping.clientId}=${setting.clientName}`,
+                    Pulumi.interpolate`${setting.exportedEnvMapping.clientSecret}=${clientSecret}`,
+                ],
+                networks: []
+            }
+        }
+            const clientSecret = this.configDeployment.secretManager.getOrCreateSecret(`${this.identifier}-${setting.realmName}-${setting.clientName}-secret`)
+            const client = new Keycloak.openid.Client("openid_client", {
+                realmId: setting.realmName,
+                clientId: setting.clientName,
+                clientSecret: clientSecret,
+                name: `client account for ${setting.clientName}`,
+                enabled: true,
+                accessType: 'PUBLIC',
+                validRedirectUris: [setting.validRedirectUri],
+                validPostLogoutRedirectUris: [setting.validRedirectUri],
+                loginTheme: "keycloak",
+            }, {provider: provider})
+
+            return {
+                envs: [Pulumi.interpolate`${setting.exportedEnvMapping.issuer}=${this.url}/realms/${client.realmId}`,
+                    Pulumi.interpolate`${setting.exportedEnvMapping.clientId}=${setting.clientName}`,
+                ],
+                networks: []
+            }
     }
 
-    getName(): string {
+    private async generateTemporaryEnvironmentResourceConfig(provider: Docker.Provider): Promise<any> {
+        new Docker.Container(`${this.identifier}-proxy`, {
+            image: "alpine/socat",
+            networksAdvanced: [{ name: `${this.identifier}-network` }],
+            command: ["TCP-LISTEN:8080,fork", `TCP:${this.identifier}:8080`], // Redirige localhost:5433 vers PostgreSQL
+            ports: [{ internal: 8080, external: this.configPort }],
+        }, { provider })
+    }
+
+    getLabel(): string {
         return this.config.clusterName
     }
 

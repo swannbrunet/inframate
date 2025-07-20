@@ -1,7 +1,7 @@
 import {Output} from "@pulumi/pulumi";
 import * as Docker from "@pulumi/docker";
-import { ConfigDeployement } from "../config.type.js";
-import {Deployment} from "@pulumi/pulumi/automation";
+import type {ConfigDeployement} from "../config.type.ts";
+import type {Deployment} from "@pulumi/pulumi/automation";
 
 export interface AbstractPluginConfig {
     kind: string,
@@ -18,6 +18,8 @@ export abstract class AbstractPlugin {
         throw new Error("Method not implemented for plugin " + this.kind);
     }
     static kind = "abstract";
+    public readonly abstract identifier: string;
+    abstract readonly type: string;
     dependencies: AbstractPlugin[] = [];
     clusterName: string = "";
 
@@ -27,13 +29,19 @@ export abstract class AbstractPlugin {
 
     }
 
-    abstract getDeploymentPlan(): DeploymentPlan {
-        return [];
-    }
+    abstract getDeploymentPlan(): DeploymentPlan;
 
     abstract getConnexion(setting: any): Promise<ConnexionSetting>;
 
+    getInfo(): any {
+        return {}
+    }
+
     async overrideConnexionStateValue(state: Deployment): Promise<void> {
+    }
+
+    getLabel(): string {
+        return 'no label'
     }
 }
 

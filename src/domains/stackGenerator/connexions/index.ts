@@ -1,8 +1,7 @@
-import { Provider } from "@pulumi/docker";
-import { Service } from "../../projectStackType/service.type.js";
-import { ConfigDeployement } from "../config.type.js";
+import type { Service } from "../../projectStackType/service.type.ts";
+import type { ConfigDeployement } from "../config.type.ts";
 import { Output } from "@pulumi/pulumi";
-import { getPluginFromConnexionKind } from "../plugins/index.js";
+import { getPluginFromConnexionKind } from "../plugins/index.ts";
 
 export interface setPluginReturn {
     envs: (string | Output<string>)[]

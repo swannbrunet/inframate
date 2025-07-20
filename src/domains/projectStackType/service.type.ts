@@ -1,5 +1,5 @@
-import { InstanceSize } from "./instanceSize.type.js";
-import { Plugin } from "./pluginConnexion.type.js";
+import { InstanceSize } from "./instanceSize.type.ts";
+import type { Plugin } from "./pluginConnexion.type.ts";
 
 type VarTypes = {
     key: string,
@@ -7,7 +7,10 @@ type VarTypes = {
 }
 
 export interface Service {
-    image: string,
+    image: string | {
+        context: string
+        dockerfile: string
+    },
     version: string,
     name: string,
     externalDomainPrefix?: string,
@@ -20,4 +23,10 @@ export interface Service {
         containerPath: string,
         volumeName: string,
     }[]
+}
+
+export const VAR_URL = "{{url}}"
+export const VAR_ENVIRONMENT = "{{environment}}"
+export function SECRET (key: string): string {
+    return `{{secret:${key}}`
 }

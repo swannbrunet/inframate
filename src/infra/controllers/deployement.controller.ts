@@ -1,5 +1,5 @@
 import { Router } from "express"
-import { deployAnInfrastructure } from "../../domains/useCases/deployInfratructure.workflow.usecase.js"
+import { deployAnInfrastructure } from "../../domains/useCases/deploy/deployInfratructure.workflow.usecase.ts"
 
 const router = Router()
 

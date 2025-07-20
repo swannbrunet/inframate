@@ -14,7 +14,7 @@
     "cli": "bun run ./src/infra/controllers/cli.controller.ts"
   },
   "bin": {
-    "inframate": "src/infra/controllers/cli.controller.ts"
+    "inframate2": "src/infra/controllers/cli.controller.ts"
   },
   "repository": {
     "type": "git",

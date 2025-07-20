@@ -1,14 +1,13 @@
-import {getProjectConfig} from "./getProjectConfig.usecase.js";
+import {getProjectConfig} from "../getProjectConfig.usecase.ts";
 import chalk from "chalk";
-import {UpdateHostFileUsecase} from "./updateHostFile.usecase.js";
-import {Project} from "../stackGenerator/project.js";
-import {deployStepUsecase} from "./deployStep.usecase.js";
-import {deployStage} from "./deployStage.usecase.js";
-import {destroyStage} from "./destroyStage.usecase.js";
+import {UpdateHostFileUsecase} from "../updateHostFile.usecase.ts";
+import {Project} from "../../stackGenerator/project.ts";
+import {deployStepUsecase} from "./deployStep.usecase.ts";
+import {destroyStage} from "../destroy/destroyStage.usecase.ts";
 
 const updateHostFileUsecase = new UpdateHostFileUsecase()
 
-export async function destroyAnInfrastructure(projectName: string, stackName: string, projectURL: string) {
+export async function deployAnInfrastructure(projectName: string, stackName: string, projectURL: string) {
 
     const projectConfig = await getProjectConfig(projectURL, stackName)
 
@@ -22,10 +21,10 @@ export async function destroyAnInfrastructure(projectName: string, stackName: st
         console.log(chalk.green`[INFO] - Step ${i + 1}`)
         await deployStepUsecase(project.getDeploymentStep(i))
     }
-    console.log(chalk.green`[STEP 2] - Destroy tempoary config ressource`)
+    console.log(chalk.green('[STEP 2] - Destroy tempoary config ressource'))
     await Promise.all(project.getTemporaryStages().map(async stage => destroyStage(stage)))
 
-    console.log(chalk.green`[STEP 3] - set hostfile and certificate`)
+    console.log(chalk.green('[STEP 3] - set hostfile'))
     updateHostFileUsecase.execute(`${projectName}-${stackName}`, project.getExternalDomain().map(domain => domain.domain))
 
 }

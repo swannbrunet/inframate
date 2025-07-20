@@ -1,6 +1,5 @@
-import { ProjectSetting } from "../../src/domains/projectStackType/projectSetting.type.js";
 
-const a: ProjectSetting = {
+const project = {
     "externalDomain": "postgres-example.me",
     "prodBranch": "prod",
     "plugins": [
@@ -9,7 +8,6 @@ const a: ProjectSetting = {
             "clusterName": "postgres",
             "prodDedicated": true,
             "reviewDedicated": false,
-            "size": "SMALL"
         }
     ],
     "services": [
@@ -17,7 +15,7 @@ const a: ProjectSetting = {
             "image": "sosedoff/pgweb",
             "version": "0.16.2",
             "name": "pgadmin",
-            "size": "SMALL",
+            "size": 1,
             "externalDomainPrefix": "gui",
             "exposedPort": 8080,
             "vars": [],
@@ -36,3 +34,5 @@ const a: ProjectSetting = {
         }
     ]
 }
+
+console.log(JSON.stringify(project))

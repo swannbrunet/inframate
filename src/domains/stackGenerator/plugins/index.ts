@@ -1,11 +1,11 @@
 
-import { KeycloakPlugin } from './keycloak.plugin.js';
-import { PostgresPlugin } from './postgres.plugin.js';
-import { TraefikPlugin } from './traefik.plugin.js';
-import { TypesensePlugin } from './typesense.plugin.js';
-import { MongodbPlugin } from './mongodb.plugin.js';
-import {ConfigDeployement, ResourceToDeploy} from "../config.type.js";
-import {AbstractPlugin} from "./abstract.plugin.js";
+import { KeycloakPlugin } from './keycloak.plugin.ts';
+import { PostgresPlugin } from './postgres.plugin.ts';
+import { TraefikPlugin } from './traefik.plugin.ts';
+import { TypesensePlugin } from './typesense.plugin.ts';
+import { MongodbPlugin } from './mongodb.plugin.ts';
+import type {ConfigDeployement} from "../config.type.ts";
+import {AbstractPlugin} from "./abstract.plugin.ts";
 
 
 export const plugins: typeof AbstractPlugin[] = [

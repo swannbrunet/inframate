@@ -1,8 +1,8 @@
-import {TypesenseConfigPlugin} from "../../projectStackType/plugin.type.js";
-import {AbstractPlugin, ConnexionSetting, DeploymentPlan, StageType} from "./abstract.plugin.js";
+import type {TypesenseConfigPlugin} from "../../projectStackType/plugin.type.ts";
+import {AbstractPlugin, type ConnexionSetting, type DeploymentPlan, StageType} from "./abstract.plugin.ts";
 import * as Docker from "@pulumi/docker";
-import {ConfigDeployement} from "../config.type.js";
-import {TypesenseConnexion} from "../../projectStackType/pluginConnexion.type.js";
+import type {ConfigDeployement} from "../config.type.ts";
+import type {TypesenseConnexion} from "../../projectStackType/pluginConnexion.type.ts";
 import Pulumi from "@pulumi/pulumi";
 
 export class TypesensePlugin extends AbstractPlugin{
@@ -12,7 +12,7 @@ export class TypesensePlugin extends AbstractPlugin{
     private instance?: Docker.Container;
     private network?: Docker.Network;
     private volume?: Docker.Volume;
-    private readonly identifier: string;
+    public readonly identifier: string;
     private apiKey?: string;
     private projectName: string;
 
@@ -69,7 +69,7 @@ export class TypesensePlugin extends AbstractPlugin{
     }
 
 
-    getName(): string {
+    getLabel(): string {
         return this.config.clusterName;
     }
 

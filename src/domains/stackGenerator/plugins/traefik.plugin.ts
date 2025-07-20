@@ -1,31 +1,23 @@
 import {
-    AbstractConnexion,
-    AbstractPlugin,
-    AbstractPluginConfig,
-    ConnexionSetting,
-    DeploymentPlan,
+    type AbstractConnexion, AbstractPlugin,
+    type AbstractPluginConfig,
+    type ConnexionSetting,
+    type DeploymentPlan,
     StageType
-} from "./abstract.plugin.js";
+} from "./abstract.plugin.ts";
 import * as Pulumi from "@pulumi/pulumi";
 import * as Docker from "@pulumi/docker";
-import {ConfigDeployement} from "../config.type.js";
-import devcert from "devcert";
-import fs from 'fs'
-import {createCA, createCert} from "mkcert";
+import type {ConfigDeployement} from "../config.type.ts";
 import YAML from "yaml";
 
 export class TraefikPlugin extends AbstractPlugin {
     readonly identifier: string = "traefik"
     static kind = "traefik";
+    type = TraefikPlugin.name;
+
     getConnexionKindNames(): string[] {
         return ["traefik"];
     }
-
-    /* '--entrypoints.websecure.http.tls.certresolver=le',
-                            "--certificatesresolvers.le.acme.tlschallenge=true",
-                            "--certificatesresolvers.le.acme.email=swannbrunet@hotmail.fr",
-                            "--certificatesresolvers.le.acme.storage=/letsencrypt/acme.json",
-                            "--certificatesresolvers.le.acme.tlschallenge=true",*/
 
     getDeploymentPlan(): DeploymentPlan {
         return [
@@ -227,6 +219,10 @@ export class TraefikPlugin extends AbstractPlugin {
             ],
             networks: [ "traefik" ]
         }
+    }
+
+    getLabel(): string {
+        return "global traefik";
     }
 
     static getPlugin(config: TraefikConfigPlugin, configDeployement: ConfigDeployement): TraefikPlugin {

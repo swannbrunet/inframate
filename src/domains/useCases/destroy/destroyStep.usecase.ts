@@ -1,5 +1,5 @@
-import {DeploymentPlan} from "../stackGenerator/plugins/abstract.plugin.js";
-import {deployStage} from "./deployStage.usecase.js";
+import type {DeploymentPlan} from "../../stackGenerator/plugins/abstract.plugin.ts";
+import {deployStage} from "../deploy/deployStage.usecase.ts";
 
 export async function deployStepUsecase(deploymentPlans: DeploymentPlan[]): Promise<void> {
     const result = deploymentPlans.map(async (deploymentPlan) => {

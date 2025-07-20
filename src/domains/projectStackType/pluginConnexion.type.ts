@@ -49,6 +49,7 @@ export interface KeycloakFrontendPrivateConnexion extends PluginAbstract {
     clusterName: string,
     realmName: string,
     clientName: string,
+    validRedirectUri: string,
     exportedEnvMapping : {
         clientId: string,
         clientSecret: string,
@@ -61,6 +62,7 @@ export interface KeycloakFrontendPublicConnexion extends PluginAbstract {
     clusterName: string,
     realmName: string,
     clientName: string,
+    validRedirectUri: string,
     exportedEnvMapping : {
         clientId: string,
         issuer: string,

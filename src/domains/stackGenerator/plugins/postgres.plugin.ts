@@ -1,15 +1,14 @@
-import {AbstractPlugin, ConnexionSetting, DeploymentPlan, StageType} from "./abstract.plugin.js";
-import {ConfigDeployement} from "../config.type.js";
-import {
+import {AbstractPlugin, type ConnexionSetting, type DeploymentPlan, StageType} from "./abstract.plugin.ts";
+import type {ConfigDeployement} from "../config.type.ts";
+import type {
     PostgresConfigPlugin,
     TypesenseConfigPlugin
-} from "../../projectStackType/plugin.type.js";
+} from "../../projectStackType/plugin.type.ts";
 import * as Docker from "@pulumi/docker";
-import {PostgresConnexion} from "../../projectStackType/pluginConnexion.type.js";
+import type {PostgresConnexion} from "../../projectStackType/pluginConnexion.type.ts";
 import Pulumi from "@pulumi/pulumi";
 import * as Postgres from "@pulumi/postgresql";
-import getPort from "get-port";
-import {Deployment} from "@pulumi/pulumi/automation";
+import type {Deployment} from "@pulumi/pulumi/automation";
 
 
 export class PostgresPlugin extends AbstractPlugin {
@@ -17,7 +16,7 @@ export class PostgresPlugin extends AbstractPlugin {
     declare config: TypesenseConfigPlugin;
     public readonly type: string = PostgresPlugin.name;
     private networkName: string;
-    private readonly identifier: string;
+    public readonly identifier: string;
     private readonly user: string = 'user';
     private password?: string;
     private configPort?: number;
@@ -38,7 +37,8 @@ export class PostgresPlugin extends AbstractPlugin {
     }
 
     private async generateTemporaryEnvironmentResourceConfig(provider: Docker.Provider): Promise<any> {
-        this.configPort = await getPort()
+        const port = 10000 + Math.floor(Math.random() * 10000);
+        this.configPort = port;
         new Docker.Container(`${this.identifier}-proxy`, {
             image: "alpine/socat",
             networksAdvanced: [{ name: `${this.identifier}-network` }],
@@ -163,8 +163,8 @@ export class PostgresPlugin extends AbstractPlugin {
         return { envs, networks: this.networkName ? [this.networkName] : [] }
     }
 
-    getName(): string {
-        return "";
+    getLabel(): string {
+        return this.config.clusterName;
     }
 
     static getPlugin(config: PostgresConfigPlugin,

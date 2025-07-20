@@ -1,12 +1,12 @@
-import {ServiceConnexion} from "../../projectStackType/pluginConnexion.type.js";
-import { ConfigDeployement } from "../config.type.js";
-import {AbstractPlugin, ConnexionSetting} from "./abstract.plugin.js";
-import * as Docker from "@pulumi/docker";
+import type {ServiceConnexion} from "../../projectStackType/pluginConnexion.type.ts";
+import type {ConfigDeployement} from "../config.type.ts";
+import {AbstractPlugin, type ConnexionSetting} from "./abstract.plugin.ts";
 
 
 export class ServiceConnexionPlugin extends AbstractPlugin {
     kind: string = "serviceConnexion";
     identifier: string = `serviceConnexion`;
+    type: string = ServiceConnexionPlugin.name;
 
     getConnexionKindNames(): string[] {
         return ["serviceConnexion"];

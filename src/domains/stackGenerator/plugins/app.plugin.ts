@@ -1,25 +1,29 @@
-import {AbstractPlugin, ConnexionSetting, DeploymentPlan, StageType} from "./abstract.plugin.js";
-import {ConfigDeployement} from "../config.type.js";
-import * as docker from "@pulumi/docker";
-import {AppConfigPlugin, MongoDBConfigPlugin, TypesenseConfigPlugin} from "../../projectStackType/plugin.type.js";
+import {AbstractPlugin, type ConnexionSetting, type DeploymentPlan, StageType} from "./abstract.plugin.ts";
+import type {ConfigDeployement} from "../config.type.ts";
+import type {AppConfigPlugin} from "../../projectStackType/plugin.type.ts";
 import * as Docker from "@pulumi/docker";
-import {MongoDBConnexion} from "../../projectStackType/pluginConnexion.type.js";
-import Pulumi, {Input} from "@pulumi/pulumi";
-import {Service} from "../../projectStackType/service.type.js";
-import {ContainerLabel, ContainerNetworksAdvanced} from "@pulumi/docker/types/input.js";
-import {TraefikPlugin} from "./traefik.plugin.js";
-import {getPluginsConnexion} from "../connexions/index.js";
-import {getPluginFromConnexionKind} from "./index.js";
-import {Deployment} from "@pulumi/pulumi/automation";
+import Pulumi, {type Input} from "@pulumi/pulumi";
+import type {Service} from "../../projectStackType/service.type.ts";
+import type {ContainerLabel, ContainerNetworksAdvanced} from "@pulumi/docker/types/input.ts";
+import {TraefikPlugin} from "./traefik.plugin.ts";
+import {getPluginsConnexion} from "../connexions/index.ts";
+import {getPluginFromConnexionKind} from "./index.ts";
+import type {Deployment} from "@pulumi/pulumi/automation";
 
 export class AppPlugin extends AbstractPlugin {
     static kind = "app";
+    static VAR_URL = "{{url}}"
+    static VAR_ENVIRONMENT = "{{environment}}"
+    static SECRET (key: string): string {
+        return `{{secret:${key}}`
+    }
 
     declare config: AppConfigPlugin;
     public readonly type: string = AppPlugin.name;
-    private readonly identifier: string;
+    public readonly identifier: string;
     private readonly user: string = 'user';
     private projectName: string;
+    private readonly domain: string;
 
     constructor(config: Service, configDeployment: ConfigDeployement) {
         const appConfig: AppConfigPlugin = {
@@ -32,6 +36,15 @@ export class AppPlugin extends AbstractPlugin {
 
         this.dependencies = this.config.plugins.map(value => getPluginFromConnexionKind(configDeployment, value.kind))
         this.dependencies.push(TraefikPlugin.getPlugin({kind: 'traefik'}, configDeployment))
+        this.domain = this.config.exposedPort ? `${this.config.externalDomainPrefix ? `${this.config.externalDomainPrefix}.` : ''}${!this.configDeployment.isProd ? `${this.configDeployment.stackName}.` : ''}${this.configDeployment.domain}` : this.identifier
+    }
+
+    getLabel(): string {
+        return this.config.name;
+    }
+
+    getInfo(): any {
+        return this.config
     }
 
 
@@ -48,25 +61,27 @@ export class AppPlugin extends AbstractPlugin {
                 run: async () => {
                     const provider = this.configDeployment.provider()
 
-                    const image = new Docker.RemoteImage(this.config.image, {
-                        name: `${this.config.image}:${this.config.version}`
-                    }, { provider })
+                    const image = this.getImage()
 
                     const labels: Input<Input<ContainerLabel>[]> = [{
                         label: "com.docker.compose.project",
                         value: `${this.configDeployment.projectName}-${this.configDeployment.stackName}`
                     }]
                     const networks: Input<ContainerNetworksAdvanced>[] = []
-                    const environmentVars: Input<string>[] = this.config.vars.map(value => `${value.key}=${value.value}`.replace("{{url}}", `${!this.configDeployment.isProd ? `${this.configDeployment.stackName}.` : ''}${this.configDeployment.domain}`)
-                        .replace("{{environment}}", this.configDeployment.stackName))
+                    const environmentVars: Input<string>[] = this.config.vars.map(value => {
+                        const envVar = `${value.key}=${value.value}`
+                            .replace("{{url}}", `${this.domain}`)
+                            .replace("{{environment}}", this.configDeployment.stackName)
+                        return this.setSecretEnv(envVar);
+                    })
+
 
                     if(this.config.exposedPort) {
-                        const domain = `${this.config.externalDomainPrefix ? `${this.config.externalDomainPrefix}.` : ''}${!this.configDeployment.isProd ? `${this.configDeployment.stackName}.` : ''}${this.configDeployment.domain}`
                         const traefikPlugin = TraefikPlugin.getPlugin({ kind: 'traefik'}, this.configDeployment)
                         const rules = await traefikPlugin.getConnexion({
                             kind: 'traefik',
                             port: this.config.exposedPort,
-                            domain: domain,
+                            domain: this.domain,
                             identifier: `${this.configDeployment.projectName}-${this.configDeployment.stackName}-${this.config.name}`
                         })
                         if(rules.labels && rules.networks) {
@@ -97,6 +112,17 @@ export class AppPlugin extends AbstractPlugin {
         ]
     }
 
+    private async setSecretEnv(value: string): Promise<string> {
+        if (value.includes('{{secret:')) {
+            const start = value.indexOf('{{secret:')
+            const end = value.indexOf('}}')
+            const key = value.substring(start + 9, end - 2)
+            const secretValue = await this.configDeployment.secretManager.getOrCreateSecret(key)
+            return value.replace(/\{\{secret:([^}]+)\}\}/g, secretValue)
+        }
+        return value
+    }
+
     getConnexionKindNames(): [] {
         return [];
     }
@@ -112,6 +138,27 @@ export class AppPlugin extends AbstractPlugin {
             labels: [],
             networks: [],
             envs: []
+        }
+    }
+
+    private getImage() {
+        const provider = this.configDeployment.provider()
+        if(typeof this.config.image === "string") {
+            return new Docker.RemoteImage(this.config.image, {
+                name: `${this.config.image}:${this.config.version}`
+            }, { provider })
+        }
+        const image =  new Docker.Image(this.config.name, {
+            imageName: this.config.name,
+            build: {
+                context: this.config.image.context,
+                dockerfile: this.config.image.dockerfile
+            }
+        })
+
+        return {
+            ...image,
+            imageId : image.repoDigest
         }
     }
 }
