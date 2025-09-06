@@ -9,6 +9,7 @@ import * as Pulumi from "@pulumi/pulumi";
 import * as Docker from "@pulumi/docker";
 import type {ConfigDeployement} from "../config.type.ts";
 import YAML from "yaml";
+import os from "os";
 
 export class TraefikPlugin extends AbstractPlugin {
     readonly identifier: string = "traefik"
@@ -164,7 +165,7 @@ export class TraefikPlugin extends AbstractPlugin {
                                 containerPath: "/config",
                             },
                             {
-                                hostPath: `${process.env.HOME}/.inframate/certificates`,
+                                hostPath: `${os.homedir()}/.inframate/certificates`,
                                 containerPath: "/certs",
                             }
                         ],

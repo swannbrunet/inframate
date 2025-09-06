@@ -1,9 +1,10 @@
 import fs from "fs";
 import {execSync} from "child_process";
+import os from "os";
 
 export class UpdateHostFileUsecase {
     execute(projectId: string, domains: string[]) {
-        const hostFilePath = "/etc/hosts";
+        const hostFilePath = os.type() === "Windows_NT" ? "/Windows/System32/drivers/etc/hosts" : "/etc/hosts";
         const hostFileContent = fs.readFileSync(hostFilePath, "utf8");
         const hostFileLines = hostFileContent.split("\n");
         const startLabel = `[INFRAMATE][START] ==== ${projectId} ====`;
@@ -30,8 +31,9 @@ export class UpdateHostFileUsecase {
     }
 
     async setCertificate(dnsEntry: string[]) {
+        const homedir = os.homedir()
         const allDomain = this.getLocalDeveloppementDomains(dnsEntry)
-        fs.mkdirSync(`${process.env.HOME}/.inframate/certificates`, { recursive: true})
-        execSync(`mkcert -cert-file ${process.env.HOME}/.inframate/certificates/cert.pem -key-file ${process.env.HOME}/.inframate/certificates/key.pem ${allDomain.join(' ')}`, { stdio: 'ignore' });
+        fs.mkdirSync(`${homedir}/.inframate/certificates`, { recursive: true})
+        execSync(`mkcert -cert-file ${homedir}/.inframate/certificates/cert.pem -key-file ${homedir}/.inframate/certificates/key.pem ${allDomain.join(' ')}`, { stdio: 'ignore' });
     }
 }

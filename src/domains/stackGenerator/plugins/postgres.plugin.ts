@@ -9,6 +9,7 @@ import type {PostgresConnexion} from "../../projectStackType/pluginConnexion.typ
 import Pulumi from "@pulumi/pulumi";
 import * as Postgres from "@pulumi/postgresql";
 import type {Deployment} from "@pulumi/pulumi/automation";
+import {generateId} from "../../utils/generateNumberFromIdentifier.ts";
 
 
 export class PostgresPlugin extends AbstractPlugin {
@@ -28,6 +29,7 @@ export class PostgresPlugin extends AbstractPlugin {
         this.networkName = `${this.identifier}-network`
         this.projectName = `${configDeployment.projectName}-postgres-${config.clusterName}`;
         this.clusterName = config.clusterName
+        this.configPort = 20000 + generateId(this.identifier);
     }
 
     private async generateRequirementEnvironementRessource(provider: Docker.Provider): Promise<any> {
@@ -37,8 +39,6 @@ export class PostgresPlugin extends AbstractPlugin {
     }
 
     private async generateTemporaryEnvironmentResourceConfig(provider: Docker.Provider): Promise<any> {
-        const port = 10000 + Math.floor(Math.random() * 10000);
-        this.configPort = port;
         new Docker.Container(`${this.identifier}-proxy`, {
             image: "alpine/socat",
             networksAdvanced: [{ name: `${this.identifier}-network` }],
@@ -54,8 +54,12 @@ export class PostgresPlugin extends AbstractPlugin {
         name: `${this.identifier}-volume`
     }, { provider })
 
+        const image = new Docker.RemoteImage("postgresImage", {
+            name: "postgres:17",
+        });
+
    new Docker.Container(this.identifier, {
-        image: "postgres:17",
+        image: image.imageId,
         name: this.identifier,
         restart: 'always',
         envs: [
@@ -79,6 +83,7 @@ export class PostgresPlugin extends AbstractPlugin {
             interval: "10s",
             retries: 6,
             timeout: "5s",
+            startPeriod: '60s',
         },
         labels: [
             {
@@ -86,7 +91,7 @@ export class PostgresPlugin extends AbstractPlugin {
                 value: `${this.configDeployment.projectName}-${this.configDeployment.stackName}`
             }
         ],
-    }, { provider })
+    }, { provider, ignoreChanges: ["networkMode", "healthcheck"], })
     }
     getDeploymentPlan(): DeploymentPlan {
         return [

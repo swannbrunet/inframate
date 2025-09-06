@@ -61,7 +61,7 @@ export class AppPlugin extends AbstractPlugin {
                 run: async () => {
                     const provider = this.configDeployment.provider()
 
-                    const image = this.getImage()
+                    const image = this.getImage(provider)
 
                     const labels: Input<Input<ContainerLabel>[]> = [{
                         label: "com.docker.compose.project",
@@ -140,20 +140,20 @@ export class AppPlugin extends AbstractPlugin {
             envs: []
         }
     }
-
-    private getImage() {
-        const provider = this.configDeployment.provider()
+    private getImage(provider: Docker.Provider) {
         if(typeof this.config.image === "string") {
             return new Docker.RemoteImage(this.config.image, {
                 name: `${this.config.image}:${this.config.version}`
             }, { provider })
         }
+        console.log(this.config.image.context)
         const image =  new Docker.Image(this.config.name, {
             imageName: this.config.name,
             build: {
                 context: this.config.image.context,
-                dockerfile: this.config.image.dockerfile
-            }
+                //dockerfile: this.config.image.dockerfile
+            },
+            skipPush: true
         })
 
         return {

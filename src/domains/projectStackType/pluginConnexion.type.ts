@@ -89,7 +89,7 @@ export interface ServiceConnexion extends PluginAbstract {
     serviceName: string,
     mode: 'public' | 'private'
     templateUrl?: string,
-    exportEnvMapping : {
+    exportedEnvMapping : {
         url: string
     }
 }

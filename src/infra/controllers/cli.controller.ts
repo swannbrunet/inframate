@@ -1,9 +1,10 @@
 #!/usr/bin/env node --experimental-transform-types --no-warnings
 
-import { Command } from "commander";
+import {Argument, Command} from "commander";
 import fs from 'fs';
 import { deployAnInfrastructure } from "../../domains/useCases/deploy/deployInfratructure.workflow.usecase.ts";
 import { displayAnInfrastructure } from "../../domains/useCases/display/displayAnInfrastructure.ts";
+import {previewStageUsecase} from "../../domains/useCases/preview/previewStage.usecase.ts";
 
 const program = new Command();
 
@@ -29,8 +30,14 @@ program
 program
     .command("preview")
     .description("display all changement of infrastructure")
-    .action(() => {
-        throw 'Not implemented'
+    .addArgument(new Argument("stage", "stage name to preview"))
+    .action((arg) => {
+        const info = JSON.parse(fs.readFileSync('package.json').toString())
+        console.log(`preview ${info.name} stage ${arg}`)
+        previewStageUsecase(info.name, 'local', '.', arg).catch((e) => {
+            console.log('An error occured:', e)
+            process.exit(1)
+        })
     });
 
 program

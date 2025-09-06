@@ -118,6 +118,29 @@ export class Project {
     getTemporaryStages() {
         return this.temporaryStage
     }
+
+    getStage(stageName: string): Stage | null {
+        let stageFound: Stage | null = null
+        this.plugins.forEach(plugin => {
+            plugin.getDeploymentPlan().forEach(stage => {
+                if(stage.project === stageName) {
+                    stageFound = stage;
+                }
+            })
+        })
+        return stageFound;
+    }
+
+    listStage(): string[] {
+        const stages: string[] = []
+        this.plugins.forEach(plugin => {
+            plugin.getDeploymentPlan().forEach(stage => {
+                stages.push(stage.project)
+            })
+        })
+        return stages
+
+    }
 }
 
 interface ResourceGraph {

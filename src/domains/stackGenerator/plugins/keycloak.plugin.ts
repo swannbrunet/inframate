@@ -10,6 +10,7 @@ import { PostgresPlugin } from "./postgres.plugin.ts";
 import { TraefikPlugin } from "./traefik.plugin.ts";
 import type {Deployment} from "@pulumi/pulumi/automation";
 import * as Keycloak from "@pulumi/keycloak";
+import { generateId } from "../../utils/generateNumberFromIdentifier.ts";
 
 export class KeycloakPlugin extends AbstractPlugin {
     static kind = "keycloak";
@@ -24,12 +25,16 @@ export class KeycloakPlugin extends AbstractPlugin {
     private readonly database: PostgresPlugin;
     private readonly traefik: TraefikPlugin;
     private readonly url: string;
-    private configPort: number = 20000 + Math.floor(Math.random() * 10000);
+    private configPort: number;
+    private configUrl: string;
     private realmNames: string[] = []
 
     constructor(config: KeycloakConfigPlugin, configDeployment: ConfigDeployement) {
         super(config, configDeployment);
         this.identifier = `${configDeployment.projectName}-${configDeployment.stackName}-keycloak-${config.clusterName}`;
+        const hash = generateId(this.identifier);
+        this.configPort = 20000 + hash
+        this.configUrl = `http://localhost:${this.configPort}`
         this.database = PostgresPlugin.getPlugin({
             prodDedicated: false,
             reviewDedicated: false,
@@ -105,6 +110,7 @@ export class KeycloakPlugin extends AbstractPlugin {
                 interval: '10s',
                 timeout: '10s',
                 retries: 10,
+                startPeriod: '60s',
                 tests: ["CMD", "curl", "-f", "http://localhost:8080/health/ready"]
             },
             wait: true
@@ -112,9 +118,9 @@ export class KeycloakPlugin extends AbstractPlugin {
     }
 
     private getKeycloakConnexionProvider() {
-        return new Keycloak.Provider(`${this.identifier}-provider`,
+        return new Keycloak.Provider(`${this.identifier}-provider-connexion`,
             {
-                url: `http://localhost:${this.configPort}`,
+                url: this.configUrl,
                 clientId: 'admin-cli',
                 username: this.username,
                 password: this.password,
@@ -132,8 +138,10 @@ export class KeycloakPlugin extends AbstractPlugin {
                     await this.generateInstance()
                 },
                 overrideStackValue: async (state: Deployment) => {
-                    await this.database.overrideConnexionStateValue(state)
-                    await this.traefik.overrideConnexionStateValue(state)
+                    try {
+                        await this.database.overrideConnexionStateValue(state)
+                        await this.traefik.overrideConnexionStateValue(state)
+                    } catch {}
                 },
                 temporary: false
             },
@@ -151,12 +159,25 @@ export class KeycloakPlugin extends AbstractPlugin {
                 project: `${this.identifier}-step-3`,
                 stack: this.configDeployment.stackName,
                 type: StageType.INFRA,
-                run: async () => {
-                    // TODO set realm
-                },
-                temporary: false
+                run: () => this.configRealm(),
+                temporary: false,
+                overrideStackValue: async (stack) => {
+                   await this.overrideConnexionStateValue(stack)
+                }
             }
         ]
+    }
+
+    async configRealm(): Promise<void> {
+        const provider = this.getKeycloakConnexionProvider()
+        const realms = this.config.realms.map((realm) => {
+            const id = realm.name.replace(' ', '-')
+            new Keycloak.Realm(`${this.identifier}-realm-${id}`, {
+                displayName: realm.name,
+                internalId: id,
+                realm: realm.name
+            }, { provider: provider})
+        })
     }
 
     async getConnexion(setting: KeycloakConnexion): Promise<ConnexionSetting> {
@@ -170,11 +191,12 @@ export class KeycloakPlugin extends AbstractPlugin {
                 name: `client account for ${setting.clientName}`,
                 enabled: true,
                 accessType: "CONFIDENTIAL",
+                serviceAccountsEnabled: true,
             }, {provider: provider})
 
             return {
                 envs: [Pulumi.interpolate`${setting.exportedEnvMapping.realmName}=${setting.realmName}`,
-                    Pulumi.interpolate`${setting.exportedEnvMapping.url}=${this.identifier}`,
+                    Pulumi.interpolate`${setting.exportedEnvMapping.url}=http://${this.identifier}`, // TODO : il manque le port d'expositions
                     Pulumi.interpolate`${setting.exportedEnvMapping.clientId}=${setting.clientName}`,
                     Pulumi.interpolate`${setting.exportedEnvMapping.clientSecret}=${clientSecret}`,
                 ],
@@ -190,6 +212,7 @@ export class KeycloakPlugin extends AbstractPlugin {
                 name: `client account for ${setting.clientName}`,
                 enabled: true,
                 accessType: "CONFIDENTIAL",
+                standardFlowEnabled: true,
                 validRedirectUris: [setting.validRedirectUri],
                 validPostLogoutRedirectUris: [setting.validRedirectUri],
                 loginTheme: "keycloak",
@@ -212,6 +235,7 @@ export class KeycloakPlugin extends AbstractPlugin {
                 enabled: true,
                 accessType: 'PUBLIC',
                 validRedirectUris: [setting.validRedirectUri],
+                standardFlowEnabled: true,
                 validPostLogoutRedirectUris: [setting.validRedirectUri],
                 loginTheme: "keycloak",
             }, {provider: provider})
@@ -226,9 +250,10 @@ export class KeycloakPlugin extends AbstractPlugin {
 
     private async generateTemporaryEnvironmentResourceConfig(provider: Docker.Provider): Promise<any> {
         new Docker.Container(`${this.identifier}-proxy`, {
+            name: `${this.identifier}-proxy`,
             image: "alpine/socat",
             networksAdvanced: [{ name: `${this.identifier}-network` }],
-            command: ["TCP-LISTEN:8080,fork", `TCP:${this.identifier}:8080`], // Redirige localhost:5433 vers PostgreSQL
+            command: ["TCP-LISTEN:8080,fork", `TCP:${this.identifier}:8080`], // Redirige localhost:8080 vers Keycloak
             ports: [{ internal: 8080, external: this.configPort }],
         }, { provider })
     }
@@ -247,5 +272,17 @@ export class KeycloakPlugin extends AbstractPlugin {
                 configDeployment.resources.resources[plugin.identifier] = plugin;
                 return plugin;
             }
+    }
+
+    async overrideConnexionStateValue(state: Deployment): Promise<void> {
+        if(state?.deployment?.resources) {
+            state.deployment.resources.forEach((resource: any) => {
+                if (resource.urn.includes(`${this.identifier}-provider-connexion`)) {
+                    resource.inputs.url = this.configUrl;
+                    resource.outputs.url = this.configUrl;
+                }
+            });
         }
+    }
+
 }

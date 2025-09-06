@@ -9,38 +9,37 @@ export class TypesensePlugin extends AbstractPlugin{
     static kind = "typesense";
     declare config: TypesenseConfigPlugin;
     public readonly type: string = TypesensePlugin.name;
-    private instance?: Docker.Container;
-    private network?: Docker.Network;
-    private volume?: Docker.Volume;
     public readonly identifier: string;
     private apiKey?: string;
     private projectName: string;
+    private networkName: string;
 
     constructor(config: TypesenseConfigPlugin, configDeployement: ConfigDeployement) {
         super(config, configDeployement);
         this.identifier = `${configDeployement.projectName}-${configDeployement.stackName}-typesense-${config.clusterName}`;
         this.projectName = `${configDeployement.projectName}-typesense-${config.clusterName}`;
         this.clusterName = config.clusterName
+        this.networkName = `network-${this.identifier}`
     }
 
     private async generateInstance() {
         const provider = this.configDeployment.provider();
         this.apiKey = await this.configDeployment.secretManager.getOrCreateSecret(`${this.identifier}-api-key`)
-        this.network = new Docker.Network(`network-${this.identifier}`, {
-            name: `network-${this.identifier}`
+        const network = new Docker.Network(this.networkName, {
+            name: this.networkName
         }, {provider});
-        this.volume = new Docker.Volume(`volume-${this.identifier}`, {
+        const volume = new Docker.Volume(`volume-${this.identifier}`, {
             name: `volume-${this.identifier}`
         }, {provider});
-        this.instance = new Docker.Container(`container-${this.identifier}`, {
+        const instance = new Docker.Container(`container-${this.identifier}`, {
             image: "typesense/typesense:28.0",
             name: this.identifier,
             networksAdvanced: [{
-                name: this.network.name
+                name: network.name
             }],
             volumes: [{
                 containerPath: "/data",
-                volumeName: this.volume.name
+                volumeName: volume.name
             }],
             envs: [
                 `TYPESENSE_API_KEY=${this.apiKey}`,
@@ -78,17 +77,14 @@ export class TypesensePlugin extends AbstractPlugin{
     }
 
     async getConnexion(setting: TypesenseConnexion): Promise<ConnexionSetting> {
-        if (this.instance === undefined || this.network === undefined) {
-            throw new Error("Instance not created yet");
-        }
         return {
             envs: [
-                Pulumi.interpolate`${setting.exportedEnvMapping.host}=${this.instance.name}`,
+                Pulumi.interpolate`${setting.exportedEnvMapping.host}=${this.identifier}`,
                 `${setting.exportedEnvMapping.port}=8108}`,
                 `${setting.exportedEnvMapping.protocol}=http`,
                 `${setting.exportedEnvMapping.apiKey}=${this.apiKey}`
             ],
-            networks: [this.network.name]
+            networks: [this.networkName]
         }
     }
 

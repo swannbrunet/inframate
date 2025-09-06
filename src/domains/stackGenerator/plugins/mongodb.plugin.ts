@@ -10,9 +10,6 @@ export class MongodbPlugin extends AbstractPlugin {
 
     declare config: TypesenseConfigPlugin;
     public readonly type: string = MongodbPlugin.name;
-    private instance?: Docker.Container;
-    private network?: Docker.Network;
-    private volume?: Docker.Volume;
     public readonly identifier: string;
     private readonly user: string = 'user';
     private password?: string;
@@ -37,14 +34,14 @@ export class MongodbPlugin extends AbstractPlugin {
                     const provider = this.configDeployment.provider()
                     this.password = await this.configDeployment.secretManager.getOrCreateSecret(`${this.identifier}-password`)
 
-                    this.network = new Docker.Network(`${this.identifier}-network`, {
+                    const network = new Docker.Network(`${this.identifier}-network`, {
                         name: `${this.identifier}-network`
                     }, { provider })
-                    this.volume = new Docker.Volume(`${this.identifier}-volume`, {
+                    const volume = new Docker.Volume(`${this.identifier}-volume`, {
                         name: `${this.identifier}-volume`
                     }, { provider })
 
-                    this.instance = new Docker.Container(this.identifier, {
+                    const instance = new Docker.Container(this.identifier, {
                         image: "mongo:7.0.16",
                         name: this.identifier,
                         restart: 'always',
@@ -60,16 +57,16 @@ export class MongodbPlugin extends AbstractPlugin {
                         ],
                         networksAdvanced: [
                             {
-                                name: this.network.name
+                                name: network.name
                             }
                         ],
                         volumes: [
                             {
                                 containerPath: "/data",
-                                volumeName: this.volume.name
+                                volumeName: volume.name
                             }
                         ]
-                    }, { provider, dependsOn: [this.network] })
+                    }, { provider, dependsOn: [network] })
                 }
             }
         ]
@@ -84,14 +81,11 @@ export class MongodbPlugin extends AbstractPlugin {
     }
 
     async getConnexion(setting: MongoDBConnexion): Promise<ConnexionSetting> {
-        if(!this.instance || !this.network) {
-            throw new Error('The plugin is not initialized')
-        }
         return {
             envs: [
-                Pulumi.interpolate`${setting.exportedEnvMapping.uri}=mongodb://${this.user}:${this.password}@${this.instance.name}:27017`
+                Pulumi.interpolate`${setting.exportedEnvMapping.uri}=mongodb://${this.user}:${this.password}@${this.identifier}:27017`
             ],
-            networks: [this.network.name]
+            networks: [`${this.identifier}-network`]
         }
     }
 

@@ -34,7 +34,7 @@ export class ServiceConnexionPlugin extends AbstractPlugin {
             url = `${setting.templateUrl}`.replace('{{url}}', url)
         }
         return {
-            envs: [`${setting.exportEnvMapping.url}=${url}`],
+            envs: [`${setting.exportedEnvMapping.url}=${url}`],
         }
     }
 

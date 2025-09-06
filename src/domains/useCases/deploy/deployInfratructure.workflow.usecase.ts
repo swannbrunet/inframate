@@ -17,11 +17,17 @@ export async function deployAnInfrastructure(projectName: string, stackName: str
 
     console.log(chalk.green`[INFO] - ${projectLengthSteps} steps to deploy`)
 
-    for (let i = 0; i < projectLengthSteps; i++) {
-        console.log(chalk.green`[INFO] - Step ${i + 1}`)
-        await deployStepUsecase(project.getDeploymentStep(i))
+    try {
+        for (let i = 0; i < projectLengthSteps; i++) {
+            console.log(chalk.green`[INFO] - Step ${i + 1}`)
+            await deployStepUsecase(project.getDeploymentStep(i))
+        }
+    } catch (e) {
+        console.log(chalk.red`[ERROR] - clean temporary config ressource`)
+        await Promise.all(project.getTemporaryStages().map(async stage => destroyStage(stage)))
+        throw e;
     }
-    console.log(chalk.green('[STEP 2] - Destroy tempoary config ressource'))
+    console.log(chalk.green('[STEP 2] - Destroy temporary config ressource'))
     await Promise.all(project.getTemporaryStages().map(async stage => destroyStage(stage)))
 
     console.log(chalk.green('[STEP 3] - set hostfile'))

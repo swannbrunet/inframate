@@ -21,11 +21,16 @@ export interface MongoDBConfigPlugin extends PluginAbstract {
     size: InstanceSize,
 }
 
+export interface RealmConfig {
+    name: string,
+}
+
 export interface KeycloakConfigPlugin extends PluginAbstract {
     kind: 'keycloak',
     clusterName: string,
     size: InstanceSize,
     externalDomainPrefix: string,
+    realms: RealmConfig[],
 }
 
 export interface PostgresConfigPlugin extends PluginAbstract {
